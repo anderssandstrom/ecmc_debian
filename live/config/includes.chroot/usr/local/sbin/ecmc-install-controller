@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec /usr/local/share/ecmc-debian/scripts/install-controller.sh "$@"

@@ -1,0 +1,7 @@
+# EtherLab master configuration.
+#
+# Replace ff:ff:ff:ff:ff:ff with the MAC address of the NIC connected to the
+# EtherCAT chain.
+
+MASTER0_DEVICE="ff:ff:ff:ff:ff:ff"
+DEVICE_MODULES="generic"

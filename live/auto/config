@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+lb config noauto \
+  --distribution trixie \
+  --architectures amd64 \
+  --archive-areas "main contrib non-free-firmware" \
+  --binary-images iso-hybrid \
+  --debian-installer live \
+  --debian-installer-gui true \
+  --bootappend-live "boot=live components quiet toram" \
+  --image-name ecmc-debian-13-live \
+  "${@}"

@@ -1,0 +1,14 @@
+[Unit]
+Description=EtherLab EtherCAT master
+After=network.target
+ConditionPathExists=/opt/etherlab/etc/sysconfig/ethercat
+
+[Service]
+Type=forking
+ExecStart=/opt/etherlab/etc/init.d/ethercat start
+ExecStop=/opt/etherlab/etc/init.d/ethercat stop
+ExecReload=/opt/etherlab/etc/init.d/ethercat restart
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

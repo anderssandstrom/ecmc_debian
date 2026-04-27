@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+chmod +x /usr/local/share/ecmc-debian/scripts/install-controller.sh
+chmod +x /usr/local/sbin/ecmc-install-controller

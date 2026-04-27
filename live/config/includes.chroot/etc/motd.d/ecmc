@@ -1,0 +1,16 @@
+ecmc Debian controller live image
+
+This live image contains the ecmc controller installer.
+
+For a real controller install, first install Debian 13 to disk using the
+included installer. After booting the installed system, copy or clone
+ecmc_debian and run:
+
+  sudo ./scripts/install-controller.sh
+
+For live-system experiments only, run:
+
+  sudo ecmc-install-controller
+
+The live-system path builds EtherLab for the live kernel and will not persist
+unless the live environment has persistence configured.
