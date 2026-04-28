@@ -105,10 +105,16 @@ The installer also creates:
 
 ```text
 /etc/sysconfig/ethercat -> /opt/etherlab/etc/sysconfig/ethercat
+/etc/default/ethercat -> /opt/etherlab/etc/sysconfig/ethercat
 ```
 
 Set `MASTER0_DEVICE` to the MAC address of the controller NIC connected to the
 EtherCAT chain.
+
+Some EtherLab packages use `/etc/default/ethercat` on Debian-like systems, while
+the source install used here normally reads `/etc/sysconfig/ethercat`. The
+installer links both names to the same config file unless a local override
+already exists.
 
 Then start the master:
 

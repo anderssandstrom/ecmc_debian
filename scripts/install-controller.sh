@@ -74,6 +74,25 @@ ECMCCOMP=${SUPPORT}/ecmccomp
 EOF_RELEASE
 }
 
+install_ethercat_config_link() {
+  local link_path="$1"
+  local target_path="$2"
+
+  install -d "$(dirname "${link_path}")"
+  if [[ -L "${link_path}" ]]; then
+    ln -sfn "${target_path}" "${link_path}"
+  elif [[ -e "${link_path}" ]]; then
+    if cmp -s "${link_path}" "${target_path}"; then
+      rm -f "${link_path}"
+      ln -s "${target_path}" "${link_path}"
+    else
+      echo "Keeping existing ${link_path}; active config for this installer is ${target_path}" >&2
+    fi
+  else
+    ln -s "${target_path}" "${link_path}"
+  fi
+}
+
 if [[ ! -d "${EPICS_BASE}/configure" ]]; then
   curl -fsSL "https://epics.anl.gov/download/base/base-${EPICS_BASE_VERSION}.tar.gz" \
     | tar -xz -C "${SRC_ROOT}"
@@ -111,9 +130,8 @@ if [[ ! -f "${ETHERLAB}/etc/sysconfig/ethercat" ]]; then
     "${ETHERLAB}/etc/sysconfig/ethercat"
 fi
 install -d /etc/sysconfig
-if [[ ! -e /etc/sysconfig/ethercat ]]; then
-  ln -s "${ETHERLAB}/etc/sysconfig/ethercat" /etc/sysconfig/ethercat
-fi
+install_ethercat_config_link /etc/sysconfig/ethercat "${ETHERLAB}/etc/sysconfig/ethercat"
+install_ethercat_config_link /etc/default/ethercat "${ETHERLAB}/etc/sysconfig/ethercat"
 
 groupadd --system --force ecmc
 install -d /etc/security/limits.d

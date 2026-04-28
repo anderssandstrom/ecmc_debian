@@ -161,6 +161,25 @@ if [[ "${#configure_driver_args[@]}" -eq 0 ]]; then
   exit 2
 fi
 
+install_ethercat_config_link() {
+  local link_path="$1"
+  local target_path="$2"
+
+  install -d "$(dirname "${link_path}")"
+  if [[ -L "${link_path}" ]]; then
+    ln -sfn "${target_path}" "${link_path}"
+  elif [[ -e "${link_path}" ]]; then
+    if cmp -s "${link_path}" "${target_path}"; then
+      rm -f "${link_path}"
+      ln -s "${target_path}" "${link_path}"
+    else
+      echo "Keeping existing ${link_path}; active config for this installer is ${target_path}" >&2
+    fi
+  else
+    ln -s "${target_path}" "${link_path}"
+  fi
+}
+
 clone_ref() {
   local repo="$1"
   local ref="$2"
@@ -218,9 +237,8 @@ if [[ ! -f "${ETHERLAB}/etc/sysconfig/ethercat" ]]; then
     "${ETHERLAB}/etc/sysconfig/ethercat"
 fi
 install -d /etc/sysconfig
-if [[ ! -e /etc/sysconfig/ethercat ]]; then
-  ln -s "${ETHERLAB}/etc/sysconfig/ethercat" /etc/sysconfig/ethercat
-fi
+install_ethercat_config_link /etc/sysconfig/ethercat "${ETHERLAB}/etc/sysconfig/ethercat"
+install_ethercat_config_link /etc/default/ethercat "${ETHERLAB}/etc/sysconfig/ethercat"
 
 install -d /etc/systemd/system
 install -m 0644 "${project_root}/config/systemd/ethercat.service" \
@@ -254,6 +272,8 @@ EtherLab install complete.
 
 Next:
   1. Edit ${ETHERLAB}/etc/sysconfig/ethercat and set MASTER0_DEVICE.
+     /etc/sysconfig/ethercat and /etc/default/ethercat are compatibility links
+     to that same file when they do not already contain a local override.
   2. Verify modules:
      /usr/sbin/modprobe ec_master
      /usr/sbin/modprobe ec_generic
