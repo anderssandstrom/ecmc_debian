@@ -4,4 +4,4 @@
 # EtherCAT chain.
 
 MASTER0_DEVICE="ff:ff:ff:ff:ff:ff"
-DEVICE_MODULES="generic"
+DEVICE_MODULES="igb igc ccat generic"

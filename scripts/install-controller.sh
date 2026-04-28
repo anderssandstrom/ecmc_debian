@@ -12,6 +12,7 @@ EPICS_BASE="${EPICS_BASE:-${EPICS_ROOT}/base}"
 SUPPORT="${SUPPORT:-${EPICS_ROOT}/support}"
 ETHERLAB="${ETHERLAB:-/opt/etherlab}"
 SRC_ROOT="${SRC_ROOT:-/opt/src/ecmc-controller}"
+read -r -a etherlab_install_args <<< "${ECMC_ETHERLAB_ARGS:-}"
 
 if [[ "$(id -u)" -ne 0 ]]; then
   echo "Run as root, for example: sudo $0" >&2
@@ -102,7 +103,7 @@ cmake -S "${SUPPORT}/ruckig" -B "${SUPPORT}/ruckig/build" \
   -DBUILD_SHARED_LIBS=ON
 cmake --build "${SUPPORT}/ruckig/build" --target ruckig --parallel "$(nproc)"
 
-"${script_dir}/install-etherlab.sh"
+"${script_dir}/install-etherlab.sh" "${etherlab_install_args[@]}"
 
 install -d "${ETHERLAB}/etc/sysconfig"
 if [[ ! -f "${ETHERLAB}/etc/sysconfig/ethercat" ]]; then

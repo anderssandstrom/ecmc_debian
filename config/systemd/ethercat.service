@@ -6,7 +6,7 @@ ConditionPathExists=/etc/sysconfig/ethercat
 [Service]
 Type=forking
 ExecStart=/opt/etherlab/etc/init.d/ethercat start
-ExecStartPost=/usr/local/sbin/ecmc-ethercat-devices
+ExecStartPost=-/usr/local/sbin/ecmc-ethercat-devices
 ExecStop=/opt/etherlab/etc/init.d/ethercat stop
 ExecReload=/opt/etherlab/etc/init.d/ethercat restart
 RemainAfterExit=yes

@@ -25,6 +25,24 @@ EtherCAT setup change:
 sudo ./scripts/install-etherlab.sh
 ```
 
+To force a clean EtherLab reinstall:
+
+```sh
+sudo ./scripts/install-etherlab.sh --clean
+```
+
+This stops the EtherLab service, unloads EtherLab modules, removes
+`/opt/etherlab`, removes the installed EtherLab kernel module directory for the
+running kernel, reinstalls from source, and preserves the active
+`/etc/sysconfig/ethercat` configuration. Add `--clean-source` to also remove
+the local EtherLab source checkout before cloning.
+
+The full controller installer can pass the same options through:
+
+```sh
+sudo ECMC_ETHERLAB_ARGS="--clean" ./scripts/install-controller.sh
+```
+
 There is also a first live USB build skeleton:
 
 ```sh
@@ -128,8 +146,9 @@ New shells get `/opt/etherlab/bin` and the EPICS Base binary path through
 `/etc/profile.d/ecmc.sh`, with bash/zsh shell startup files sourcing it when
 available.
 
-For first tests, the installer defaults to the EtherLab generic driver. Native
-drivers can be added later for sites that need them.
+For first tests, the installer builds and enables the `igb`, `igc`, `ccat`, and
+`generic` EtherLab device modules. Edit `DEVICE_MODULES` in
+`/etc/sysconfig/ethercat` if the controller should use a narrower driver set.
 
 ## Next steps
 
