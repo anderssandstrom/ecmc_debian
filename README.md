@@ -18,6 +18,13 @@ Phase 1 is a host bootstrap script:
 sudo ./scripts/install-controller.sh
 ```
 
+To rebuild only EtherLab and its kernel modules after a kernel update or
+EtherCAT setup change:
+
+```sh
+sudo ./scripts/install-etherlab.sh
+```
+
 There is also a first live USB build skeleton:
 
 ```sh
@@ -66,6 +73,33 @@ Then start the master:
 
 ```sh
 sudo systemctl enable --now ethercat
+```
+
+## Module signing and Secure Boot
+
+During `make modules_install`, Debian may print messages like:
+
+```text
+SSL error: ... No such file or directory ... signing_key.pem
+```
+
+This means the kernel build tried to sign the out-of-tree EtherLab modules but
+the header tree does not contain a private signing key. If the install continues
+to `DEPMOD`, the modules were still installed.
+
+For normal controller tests, disable Secure Boot in firmware. If Secure Boot is
+enabled, unsigned EtherLab modules may fail to load with:
+
+```text
+Key was rejected by service
+```
+
+After installation, verify module loading:
+
+```sh
+sudo modprobe ec_master
+sudo modprobe ec_generic
+lsmod | grep '^ec_'
 ```
 
 For first tests, the installer defaults to the EtherLab generic driver. Native

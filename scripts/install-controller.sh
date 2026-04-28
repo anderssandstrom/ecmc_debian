@@ -42,13 +42,6 @@ apt-get install -y --no-install-recommends \
   re2c \
   "linux-headers-$(uname -r)"
 
-kernel_build_dir="/lib/modules/$(uname -r)/build"
-if [[ ! -d "${kernel_build_dir}" ]]; then
-  echo "Missing kernel build directory: ${kernel_build_dir}" >&2
-  echo "Install matching linux-headers for the running kernel and retry." >&2
-  exit 1
-fi
-
 mkdir -p "${EPICS_ROOT}" "${SUPPORT}" "${SRC_ROOT}" "${ETHERLAB}"
 
 clone_ref() {
@@ -109,27 +102,7 @@ cmake -S "${SUPPORT}/ruckig" -B "${SUPPORT}/ruckig/build" \
   -DBUILD_SHARED_LIBS=ON
 cmake --build "${SUPPORT}/ruckig/build" --target ruckig --parallel "$(nproc)"
 
-clone_ref "${ETHERLAB_REPO}" "${ETHERLAB_REF}" "${SRC_ROOT}/ethercat"
-(
-  cd "${SRC_ROOT}/ethercat"
-  ./bootstrap
-  ./configure \
-    --prefix="${ETHERLAB}" \
-    --with-linux-dir="${kernel_build_dir}" \
-    --enable-generic \
-    --enable-tool \
-    --enable-userlib \
-    --disable-8139too \
-    --disable-e100 \
-    --disable-e1000 \
-    --disable-e1000e \
-    --disable-r8169
-  make -j"$(nproc)"
-  make modules
-  make install
-  make modules_install
-)
-depmod -a
+"${script_dir}/install-etherlab.sh"
 
 install -d "${ETHERLAB}/etc/sysconfig"
 if [[ ! -f "${ETHERLAB}/etc/sysconfig/ethercat" ]]; then
@@ -183,7 +156,11 @@ Next:
   2. Add controller users to the ecmc group and re-login.
   3. Enable and start EtherLab:
      systemctl enable --now ethercat
-  4. Run the ecmc example IOC from:
+  4. Verify modules:
+     modprobe ec_master
+     modprobe ec_generic
+     lsmod | grep '^ec_'
+  5. Run the ecmc example IOC from:
      ${SUPPORT}/ecmc/ecmcExampleTop/iocBoot/ecmcIoc
 
 EOF_DONE
