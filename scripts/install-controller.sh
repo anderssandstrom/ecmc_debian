@@ -12,6 +12,7 @@ EPICS_BASE="${EPICS_BASE:-${EPICS_ROOT}/base}"
 SUPPORT="${SUPPORT:-${EPICS_ROOT}/support}"
 ETHERLAB="${ETHERLAB:-/opt/etherlab}"
 SRC_ROOT="${SRC_ROOT:-/opt/src/ecmc-controller}"
+ECMC_SRC="${ECMC_SRC:-${SRC_ROOT}/ecmc}"
 ECMCCFG_SRC="${ECMCCFG_SRC:-${SRC_ROOT}/ecmccfg}"
 ECMCCOMP_SRC="${ECMCCOMP_SRC:-${SRC_ROOT}/ecmccomp}"
 RUCKIG_SRC="${RUCKIG_SRC:-${SRC_ROOT}/ecmc_ruckig}"
@@ -57,10 +58,35 @@ clone_ref() {
   local dest="$3"
 
   if [[ -d "${dest}/.git" ]]; then
+    git -C "${dest}" remote set-url origin "${repo}"
     git -C "${dest}" fetch --depth 1 origin "${ref}"
     git -C "${dest}" checkout --detach FETCH_HEAD
   else
     git clone --depth 1 --branch "${ref}" "${repo}" "${dest}"
+  fi
+}
+
+phase() {
+  printf '\n==> %s\n' "$*"
+}
+
+link_support_checkout() {
+  local src="$1"
+  local dest="$2"
+
+  if [[ -L "${dest}" ]]; then
+    ln -sfn "${src}" "${dest}"
+  elif [[ -d "${dest}/.git" && ! -e "${src}" ]]; then
+    mv "${dest}" "${src}"
+    ln -s "${src}" "${dest}"
+  elif [[ -e "${dest}" ]]; then
+    if [[ "$(readlink -f "${dest}")" != "$(readlink -f "${src}")" ]]; then
+      echo "Refusing to replace existing ${dest}; move it aside and retry." >&2
+      echo "Expected ${dest} to point to ${src}." >&2
+      exit 1
+    fi
+  else
+    ln -s "${src}" "${dest}"
   fi
 }
 
@@ -233,6 +259,17 @@ find_ecmc_ioc() {
   find "${SUPPORT}/ecmc" -path '*/bin/*/ecmcIoc' -type f -perm -111 -print -quit 2>/dev/null || true
 }
 
+diagnose_missing_ecmc_ioc() {
+  echo "ecmc build completed but no ecmcIoc binary was found below ${SUPPORT}/ecmc." >&2
+  echo "Repository and ref:" >&2
+  git -C "${SUPPORT}/ecmc" remote -v >&2 || true
+  git -C "${SUPPORT}/ecmc" rev-parse --short HEAD >&2 || true
+  echo "ecmcExampleTop files:" >&2
+  find "${SUPPORT}/ecmc/ecmcExampleTop" -maxdepth 4 \( -name 'ecmcIoc*' -o -name '*.dbd' -o -name '*.so' \) -print >&2 || true
+  echo "Check the ecmcExampleTop build output above for the first compile or link error." >&2
+}
+
+phase "Building EPICS Base"
 if [[ ! -d "${EPICS_BASE}/configure" ]]; then
   curl -fsSL "https://epics.anl.gov/download/base/base-${EPICS_BASE_VERSION}.tar.gz" \
     | tar -xz -C "${SRC_ROOT}"
@@ -241,6 +278,7 @@ fi
 make -C "${EPICS_BASE}" -j"$(nproc)"
 link_epics_base_tools
 
+phase "Building asyn"
 clone_ref "${ASYN_REPO}" "${ASYN_REF}" "${SUPPORT}/asyn"
 cat > "${SUPPORT}/asyn/configure/RELEASE.local" <<EOF_ASYN
 SUPPORT=${SUPPORT}
@@ -249,6 +287,7 @@ EOF_ASYN
 printf 'TIRPC=YES\n' > "${SUPPORT}/asyn/configure/CONFIG_SITE.local"
 make -C "${SUPPORT}/asyn" -j"$(nproc)"
 
+phase "Building motor"
 clone_ref "${MOTOR_REPO}" "${MOTOR_REF}" "${SUPPORT}/motor"
 cat > "${SUPPORT}/motor/configure/RELEASE.local" <<EOF_MOTOR
 SUPPORT=${SUPPORT}
@@ -257,6 +296,7 @@ ASYN=${SUPPORT}/asyn
 EOF_MOTOR
 make -C "${SUPPORT}/motor" -j"$(nproc)"
 
+phase "Building PSI ecmc_ruckig"
 clone_ref "${RUCKIG_REPO}" "${RUCKIG_REF}" "${RUCKIG_SRC}"
 rm -rf "${SUPPORT}/ruckig"
 install -d "${SUPPORT}/ruckig"
@@ -270,7 +310,9 @@ cmake -S "${RUCKIG_SRC}/ruckig" -B "${SUPPORT}/ruckig/build" \
   -DBUILD_PYTHON_MODULE=OFF
 cmake --build "${SUPPORT}/ruckig/build" --target ruckig --parallel "$(nproc)"
 
-"${script_dir}/install-etherlab.sh" "${etherlab_install_args[@]}"
+phase "Building EtherLab"
+ECMC_ETHERLAB_EMBEDDED=1 "${script_dir}/install-etherlab.sh" "${etherlab_install_args[@]}"
+phase "Continuing controller install after EtherLab"
 
 install -d "${ETHERLAB}/etc/sysconfig"
 if [[ ! -f "${ETHERLAB}/etc/sysconfig/ethercat" ]]; then
@@ -323,10 +365,14 @@ EOF_PROFILE
   fi
 done
 
+phase "Installing ecmccfg runtime"
 clone_ref "${ECMCCFG_REPO}" "${ECMCCFG_REF}" "${ECMCCFG_SRC}"
 install_flat_runtime_module "${ECMCCFG_SRC}" "${SUPPORT}/ecmccfg"
 
-clone_ref "${ECMC_REPO}" "${ECMC_REF}" "${SUPPORT}/ecmc"
+link_support_checkout "${ECMC_SRC}" "${SUPPORT}/ecmc"
+phase "Building ecmc"
+clone_ref "${ECMC_REPO}" "${ECMC_REF}" "${ECMC_SRC}"
+link_support_checkout "${ECMC_SRC}" "${SUPPORT}/ecmc"
 git -C "${SUPPORT}/ecmc" submodule update --init exprtkSupport
 if [[ ! -f "${SUPPORT}/ecmc/exprtkSupport/Makefile" ]]; then
   clone_ref "${EXPRTK_REPO}" "${EXPRTK_REF}" "${SUPPORT}/ecmc/exprtkSupport"
@@ -336,11 +382,11 @@ write_release "${SUPPORT}/ecmc/ecmcExampleTop/configure/RELEASE.local"
 make -C "${SUPPORT}/ecmc" -j"$(nproc)"
 make -C "${SUPPORT}/ecmc/ecmcExampleTop" -j"$(nproc)"
 if [[ -z "$(find_ecmc_ioc)" ]]; then
-  echo "ecmc build completed but no ecmcIoc binary was found below ${SUPPORT}/ecmc." >&2
-  echo "Check the ecmcExampleTop build output above for the first compile or link error." >&2
+  diagnose_missing_ecmc_ioc
   exit 1
 fi
 
+phase "Installing ecmccomp runtime"
 clone_ref "${ECMCCOMP_REPO}" "${ECMCCOMP_REF}" "${ECMCCOMP_SRC}"
 if [[ -d "${ECMCCOMP_SRC}/configure" ]]; then
   cat > "${ECMCCOMP_SRC}/configure/RELEASE.local" <<EOF_ECMCCOMP
@@ -357,6 +403,7 @@ if [[ -f "${ECMCCOMP_SRC}/Makefile" ]]; then
   make -C "${ECMCCOMP_SRC}" -j"$(nproc)"
 fi
 install_flat_runtime_module "${ECMCCOMP_SRC}" "${SUPPORT}/ecmccomp"
+phase "Installing classic IOC wrapper"
 "${script_dir}/install-classic-ioc.sh"
 ldconfig
 

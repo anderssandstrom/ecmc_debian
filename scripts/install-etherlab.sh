@@ -11,6 +11,7 @@ ETHERLAB="${ETHERLAB:-/opt/etherlab}"
 SRC_ROOT="${SRC_ROOT:-/opt/src/ecmc-controller}"
 ETHERCAT_DRIVERS="${ETHERCAT_DRIVERS:-generic}"
 ECMC_USER="${ECMC_USER:-${SUDO_USER:-}}"
+ECMC_ETHERLAB_EMBEDDED="${ECMC_ETHERLAB_EMBEDDED:-0}"
 clean_install=0
 clean_source=0
 
@@ -203,6 +204,7 @@ clone_ref() {
   local dest="$3"
 
   if [[ -d "${dest}/.git" ]]; then
+    git -C "${dest}" remote set-url origin "${repo}"
     git -C "${dest}" fetch --depth 1 origin "${ref}"
     git -C "${dest}" checkout --detach FETCH_HEAD
   else
@@ -296,7 +298,8 @@ EOF_PROFILE
   fi
 done
 
-cat <<EOF_DONE
+if [[ "${ECMC_ETHERLAB_EMBEDDED}" -ne 1 ]]; then
+  cat <<EOF_DONE
 
 EtherLab install complete.
 
@@ -317,3 +320,4 @@ Next:
      ethercat master
 
 EOF_DONE
+fi
