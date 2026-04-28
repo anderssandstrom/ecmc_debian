@@ -12,6 +12,7 @@ EPICS_BASE="${EPICS_BASE:-${EPICS_ROOT}/base}"
 SUPPORT="${SUPPORT:-${EPICS_ROOT}/support}"
 ETHERLAB="${ETHERLAB:-/opt/etherlab}"
 SRC_ROOT="${SRC_ROOT:-/opt/src/ecmc-controller}"
+ECMC_USER="${ECMC_USER:-${SUDO_USER:-}}"
 read -r -a etherlab_install_args <<< "${ECMC_ETHERLAB_ARGS:-}"
 
 if [[ "$(id -u)" -ne 0 ]]; then
@@ -32,6 +33,7 @@ apt-get install -y --no-install-recommends \
   curl \
   flex \
   git \
+  iproute2 \
   kmod \
   libreadline-dev \
   libtirpc-dev \
@@ -134,6 +136,9 @@ install_ethercat_config_link /etc/sysconfig/ethercat "${ETHERLAB}/etc/sysconfig/
 install_ethercat_config_link /etc/default/ethercat "${ETHERLAB}/etc/sysconfig/ethercat"
 
 groupadd --system --force ecmc
+if [[ -n "${ECMC_USER}" && "${ECMC_USER}" != "root" ]] && id "${ECMC_USER}" >/dev/null 2>&1; then
+  usermod -a -G ecmc "${ECMC_USER}"
+fi
 install -d /etc/security/limits.d
 install -m 0644 "${project_root}/config/limits.d/ecmc.conf" \
   /etc/security/limits.d/ecmc.conf
@@ -142,6 +147,8 @@ install -d /etc/systemd/system
 install -m 0644 "${project_root}/config/systemd/ethercat.service" \
   /etc/systemd/system/ethercat.service
 install -d /usr/local/sbin /usr/local/bin
+install -m 0755 "${project_root}/config/bin/ecmc-ethercat-ifup" \
+  /usr/local/sbin/ecmc-ethercat-ifup
 install -m 0755 "${project_root}/config/bin/ecmc-ethercat-devices" \
   /usr/local/sbin/ecmc-ethercat-devices
 ln -sfn "${ETHERLAB}/bin/ethercat" /usr/local/bin/ethercat

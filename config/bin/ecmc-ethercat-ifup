@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config="${1:-/etc/sysconfig/ethercat}"
+
+if [[ ! -r "${config}" ]]; then
+  echo "EtherCAT config not readable: ${config}" >&2
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+source "${config}"
+
+master_device="${MASTER0_DEVICE:-}"
+if [[ -z "${master_device}" || "${master_device}" == "ff:ff:ff:ff:ff:ff" ]]; then
+  echo "MASTER0_DEVICE is not configured in ${config}" >&2
+  exit 1
+fi
+
+interface="${master_device}"
+if [[ "${master_device}" == *:* ]]; then
+  interface=""
+  for address_file in /sys/class/net/*/address; do
+    if [[ "$(tr '[:upper:]' '[:lower:]' < "${address_file}")" == "$(tr '[:upper:]' '[:lower:]' <<< "${master_device}")" ]]; then
+      interface="$(basename "$(dirname "${address_file}")")"
+      break
+    fi
+  done
+fi
+
+if [[ -z "${interface}" || ! -d "/sys/class/net/${interface}" ]]; then
+  echo "Could not resolve EtherCAT interface from MASTER0_DEVICE=${master_device}" >&2
+  exit 1
+fi
+
+/usr/sbin/ip link set dev "${interface}" up

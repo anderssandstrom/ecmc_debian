@@ -10,6 +10,7 @@ source "${project_root}/config/versions.env"
 ETHERLAB="${ETHERLAB:-/opt/etherlab}"
 SRC_ROOT="${SRC_ROOT:-/opt/src/ecmc-controller}"
 ETHERCAT_DRIVERS="${ETHERCAT_DRIVERS:-generic}"
+ECMC_USER="${ECMC_USER:-${SUDO_USER:-}}"
 clean_install=0
 clean_source=0
 
@@ -30,6 +31,7 @@ Options:
 
 Environment:
   ETHERCAT_DRIVERS="${ETHERCAT_DRIVERS}"
+  ECMC_USER="${ECMC_USER}"
 EOF_USAGE
 }
 
@@ -77,6 +79,7 @@ apt-get install -y --no-install-recommends \
   ca-certificates \
   flex \
   git \
+  iproute2 \
   kmod \
   libtool \
   m4 \
@@ -112,6 +115,7 @@ clean_etherlab_install() {
   rm -rf "${ETHERLAB}"
   rm -rf "/lib/modules/$(uname -r)/ethercat"
   rm -f /usr/local/bin/ethercat
+  rm -f /usr/local/sbin/ecmc-ethercat-ifup
   rm -f /usr/local/sbin/ecmc-ethercat-devices
   rm -f /etc/systemd/system/ethercat.service
   if [[ -L /etc/sysconfig/ethercat ]]; then
@@ -240,10 +244,17 @@ install -d /etc/sysconfig
 install_ethercat_config_link /etc/sysconfig/ethercat "${ETHERLAB}/etc/sysconfig/ethercat"
 install_ethercat_config_link /etc/default/ethercat "${ETHERLAB}/etc/sysconfig/ethercat"
 
+groupadd --system --force ecmc
+if [[ -n "${ECMC_USER}" && "${ECMC_USER}" != "root" ]] && id "${ECMC_USER}" >/dev/null 2>&1; then
+  usermod -a -G ecmc "${ECMC_USER}"
+fi
+
 install -d /etc/systemd/system
 install -m 0644 "${project_root}/config/systemd/ethercat.service" \
   /etc/systemd/system/ethercat.service
 install -d /usr/local/sbin /usr/local/bin
+install -m 0755 "${project_root}/config/bin/ecmc-ethercat-ifup" \
+  /usr/local/sbin/ecmc-ethercat-ifup
 install -m 0755 "${project_root}/config/bin/ecmc-ethercat-devices" \
   /usr/local/sbin/ecmc-ethercat-devices
 ln -sfn "${ETHERLAB}/bin/ethercat" /usr/local/bin/ethercat
@@ -274,15 +285,16 @@ Next:
   1. Edit ${ETHERLAB}/etc/sysconfig/ethercat and set MASTER0_DEVICE.
      /etc/sysconfig/ethercat and /etc/default/ethercat are compatibility links
      to that same file when they do not already contain a local override.
-  2. Verify modules:
+  2. Re-login, or run: newgrp ecmc
+  3. Verify modules:
      /usr/sbin/modprobe ec_master
      /usr/sbin/modprobe ec_generic
      /usr/local/sbin/ecmc-ethercat-devices
      lsmod | grep '^ec_'
      ls -l /dev/EtherCAT*
-  3. Enable and start EtherLab:
+  4. Enable and start EtherLab:
      systemctl enable --now ethercat
-  4. Check the master:
+  5. Check the master:
      ethercat master
 
 EOF_DONE
