@@ -51,6 +51,8 @@ It also installs:
 - `/etc/security/limits.d/ecmc.conf`
 - `/etc/profile.d/ecmc.sh`
 - `/etc/ld.so.conf.d/ecmc.conf`
+- `/usr/local/bin/ethercat`
+- `/usr/local/sbin/ecmc-ethercat-devices`
 - an `ecmc` user group for realtime limits
 
 The default install prefix is:
@@ -116,8 +118,15 @@ The EtherLab command is installed at:
 /opt/etherlab/bin/ethercat
 ```
 
-New login shells get `/opt/etherlab/bin` and the EPICS Base binary path through
-`/etc/profile.d/ecmc.sh`.
+The installer also adds a convenience symlink:
+
+```sh
+/usr/local/bin/ethercat -> /opt/etherlab/bin/ethercat
+```
+
+New shells get `/opt/etherlab/bin` and the EPICS Base binary path through
+`/etc/profile.d/ecmc.sh`, with bash/zsh shell startup files sourcing it when
+available.
 
 For first tests, the installer defaults to the EtherLab generic driver. Native
 drivers can be added later for sites that need them.

@@ -122,6 +122,10 @@ install -m 0644 "${project_root}/config/limits.d/ecmc.conf" \
 install -d /etc/systemd/system
 install -m 0644 "${project_root}/config/systemd/ethercat.service" \
   /etc/systemd/system/ethercat.service
+install -d /usr/local/sbin /usr/local/bin
+install -m 0755 "${project_root}/config/bin/ecmc-ethercat-devices" \
+  /usr/local/sbin/ecmc-ethercat-devices
+ln -sfn "${ETHERLAB}/bin/ethercat" /usr/local/bin/ethercat
 systemctl daemon-reload || true
 
 install -d /etc/profile.d /etc/ld.so.conf.d
@@ -130,6 +134,16 @@ install -m 0644 "${project_root}/config/profile.d/ecmc.sh" \
 install -m 0644 "${project_root}/config/ld.so.conf.d/ecmc.conf" \
   /etc/ld.so.conf.d/ecmc.conf
 ldconfig
+for profile in /etc/bash.bashrc /etc/zsh/zshrc; do
+  if [[ -f "${profile}" ]] && ! grep -q '/etc/profile.d/ecmc.sh' "${profile}"; then
+    cat >> "${profile}" <<'EOF_PROFILE'
+
+if [ -r /etc/profile.d/ecmc.sh ]; then
+  . /etc/profile.d/ecmc.sh
+fi
+EOF_PROFILE
+  fi
+done
 
 clone_ref "${ECMCCFG_REPO}" "${ECMCCFG_REF}" "${SUPPORT}/ecmccfg"
 
@@ -173,7 +187,7 @@ Next:
      /usr/sbin/modprobe ec_generic
      lsmod | grep '^ec_'
   5. Check the master:
-     /opt/etherlab/bin/ethercat master
+     ethercat master
   6. Run the ecmc example IOC from:
      ${SUPPORT}/ecmc/ecmcExampleTop/iocBoot/ecmcIoc
 

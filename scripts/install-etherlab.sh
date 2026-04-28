@@ -102,6 +102,10 @@ fi
 install -d /etc/systemd/system
 install -m 0644 "${project_root}/config/systemd/ethercat.service" \
   /etc/systemd/system/ethercat.service
+install -d /usr/local/sbin /usr/local/bin
+install -m 0755 "${project_root}/config/bin/ecmc-ethercat-devices" \
+  /usr/local/sbin/ecmc-ethercat-devices
+ln -sfn "${ETHERLAB}/bin/ethercat" /usr/local/bin/ethercat
 systemctl daemon-reload || true
 
 install -d /etc/profile.d /etc/ld.so.conf.d
@@ -110,6 +114,16 @@ install -m 0644 "${project_root}/config/profile.d/ecmc.sh" \
 install -m 0644 "${project_root}/config/ld.so.conf.d/ecmc.conf" \
   /etc/ld.so.conf.d/ecmc.conf
 ldconfig
+for profile in /etc/bash.bashrc /etc/zsh/zshrc; do
+  if [[ -f "${profile}" ]] && ! grep -q '/etc/profile.d/ecmc.sh' "${profile}"; then
+    cat >> "${profile}" <<'EOF_PROFILE'
+
+if [ -r /etc/profile.d/ecmc.sh ]; then
+  . /etc/profile.d/ecmc.sh
+fi
+EOF_PROFILE
+  fi
+done
 
 cat <<EOF_DONE
 
@@ -124,6 +138,6 @@ Next:
   3. Enable and start EtherLab:
      systemctl enable --now ethercat
   4. Check the master:
-     /opt/etherlab/bin/ethercat master
+     ethercat master
 
 EOF_DONE

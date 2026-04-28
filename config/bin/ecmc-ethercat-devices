@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+major="$(awk '$2=="EtherCAT"{print $1}' /proc/devices)"
+
+if [[ -z "${major}" ]]; then
+  echo "EtherCAT character device major not found in /proc/devices" >&2
+  echo "Is ec_master loaded?" >&2
+  exit 1
+fi
+
+for index in 0; do
+  node="/dev/EtherCAT${index}"
+  if [[ ! -e "${node}" ]]; then
+    mknod "${node}" c "${major}" "${index}"
+  fi
+  chown root:ecmc "${node}" 2>/dev/null || chown root:root "${node}"
+  chmod 0660 "${node}" 2>/dev/null || chmod 0666 "${node}"
+done
