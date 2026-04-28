@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-major="$(awk '$2=="EtherCAT"{print $1}' /proc/devices)"
+major="$(awk 'tolower($2)=="ethercat"{print $1}' /proc/devices)"
 
 if [[ -z "${major}" ]]; then
   echo "EtherCAT character device major not found in /proc/devices" >&2

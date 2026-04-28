@@ -185,7 +185,9 @@ Next:
   4. Verify modules:
      /usr/sbin/modprobe ec_master
      /usr/sbin/modprobe ec_generic
+     /usr/local/sbin/ecmc-ethercat-devices
      lsmod | grep '^ec_'
+     ls -l /dev/EtherCAT*
   5. Check the master:
      ethercat master
   6. Run the ecmc example IOC from:

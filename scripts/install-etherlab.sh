@@ -134,7 +134,9 @@ Next:
   2. Verify modules:
      /usr/sbin/modprobe ec_master
      /usr/sbin/modprobe ec_generic
+     /usr/local/sbin/ecmc-ethercat-devices
      lsmod | grep '^ec_'
+     ls -l /dev/EtherCAT*
   3. Enable and start EtherLab:
      systemctl enable --now ethercat
   4. Check the master:
