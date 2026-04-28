@@ -49,6 +49,8 @@ It also installs:
 
 - `/etc/systemd/system/ethercat.service`
 - `/etc/security/limits.d/ecmc.conf`
+- `/etc/profile.d/ecmc.sh`
+- `/etc/ld.so.conf.d/ecmc.conf`
 - an `ecmc` user group for realtime limits
 
 The default install prefix is:
@@ -97,10 +99,19 @@ Key was rejected by service
 After installation, verify module loading:
 
 ```sh
-sudo modprobe ec_master
-sudo modprobe ec_generic
+sudo /usr/sbin/modprobe ec_master
+sudo /usr/sbin/modprobe ec_generic
 lsmod | grep '^ec_'
 ```
+
+The EtherLab command is installed at:
+
+```sh
+/opt/etherlab/bin/ethercat
+```
+
+New login shells get `/opt/etherlab/bin` and the EPICS Base binary path through
+`/etc/profile.d/ecmc.sh`.
 
 For first tests, the installer defaults to the EtherLab generic driver. Native
 drivers can be added later for sites that need them.

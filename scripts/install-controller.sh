@@ -120,6 +120,13 @@ install -m 0644 "${project_root}/config/systemd/ethercat.service" \
   /etc/systemd/system/ethercat.service
 systemctl daemon-reload || true
 
+install -d /etc/profile.d /etc/ld.so.conf.d
+install -m 0644 "${project_root}/config/profile.d/ecmc.sh" \
+  /etc/profile.d/ecmc.sh
+install -m 0644 "${project_root}/config/ld.so.conf.d/ecmc.conf" \
+  /etc/ld.so.conf.d/ecmc.conf
+ldconfig
+
 clone_ref "${ECMCCFG_REPO}" "${ECMCCFG_REF}" "${SUPPORT}/ecmccfg"
 
 clone_ref "${ECMC_REPO}" "${ECMC_REF}" "${SUPPORT}/ecmc"
@@ -146,6 +153,7 @@ fi
 if [[ -f "${SUPPORT}/ecmccomp/Makefile" ]]; then
   make -C "${SUPPORT}/ecmccomp" -j"$(nproc)"
 fi
+ldconfig
 
 cat <<EOF_DONE
 
@@ -157,10 +165,12 @@ Next:
   3. Enable and start EtherLab:
      systemctl enable --now ethercat
   4. Verify modules:
-     modprobe ec_master
-     modprobe ec_generic
+     /usr/sbin/modprobe ec_master
+     /usr/sbin/modprobe ec_generic
      lsmod | grep '^ec_'
-  5. Run the ecmc example IOC from:
+  5. Check the master:
+     /opt/etherlab/bin/ethercat master
+  6. Run the ecmc example IOC from:
      ${SUPPORT}/ecmc/ecmcExampleTop/iocBoot/ecmcIoc
 
 EOF_DONE

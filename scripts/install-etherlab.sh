@@ -100,6 +100,13 @@ install -m 0644 "${project_root}/config/systemd/ethercat.service" \
   /etc/systemd/system/ethercat.service
 systemctl daemon-reload || true
 
+install -d /etc/profile.d /etc/ld.so.conf.d
+install -m 0644 "${project_root}/config/profile.d/ecmc.sh" \
+  /etc/profile.d/ecmc.sh
+install -m 0644 "${project_root}/config/ld.so.conf.d/ecmc.conf" \
+  /etc/ld.so.conf.d/ecmc.conf
+ldconfig
+
 cat <<EOF_DONE
 
 EtherLab install complete.
@@ -107,10 +114,12 @@ EtherLab install complete.
 Next:
   1. Edit ${ETHERLAB}/etc/sysconfig/ethercat and set MASTER0_DEVICE.
   2. Verify modules:
-     modprobe ec_master
-     modprobe ec_generic
+     /usr/sbin/modprobe ec_master
+     /usr/sbin/modprobe ec_generic
      lsmod | grep '^ec_'
   3. Enable and start EtherLab:
      systemctl enable --now ethercat
+  4. Check the master:
+     /opt/etherlab/bin/ethercat master
 
 EOF_DONE
