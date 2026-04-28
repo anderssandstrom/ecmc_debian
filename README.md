@@ -43,6 +43,19 @@ The full controller installer can pass the same options through:
 sudo ECMC_ETHERLAB_ARGS="--clean" ./scripts/install-controller.sh
 ```
 
+By default, the installer builds only the EtherLab `generic` driver. Optional
+native drivers can be selected explicitly:
+
+```sh
+sudo ./scripts/install-etherlab.sh --clean --drivers "generic,igb,igc,ccat"
+```
+
+The same setting can be provided through the environment:
+
+```sh
+sudo ETHERCAT_DRIVERS="generic,igb,igc,ccat" ./scripts/install-etherlab.sh --clean
+```
+
 There is also a first live USB build skeleton:
 
 ```sh
@@ -146,9 +159,9 @@ New shells get `/opt/etherlab/bin` and the EPICS Base binary path through
 `/etc/profile.d/ecmc.sh`, with bash/zsh shell startup files sourcing it when
 available.
 
-For first tests, the installer builds and enables the `igb`, `igc`, `ccat`, and
-`generic` EtherLab device modules. Edit `DEVICE_MODULES` in
-`/etc/sysconfig/ethercat` if the controller should use a narrower driver set.
+For first tests, the installer builds and enables the EtherLab `generic` module.
+Native drivers such as `igb`, `igc`, and `ccat` are optional because they can be
+more sensitive to kernel and NIC driver changes.
 
 ## Next steps
 

@@ -9,12 +9,13 @@ source "${project_root}/config/versions.env"
 
 ETHERLAB="${ETHERLAB:-/opt/etherlab}"
 SRC_ROOT="${SRC_ROOT:-/opt/src/ecmc-controller}"
+ETHERCAT_DRIVERS="${ETHERCAT_DRIVERS:-generic}"
 clean_install=0
 clean_source=0
 
 usage() {
   cat <<EOF_USAGE
-Usage: sudo $0 [--clean] [--clean-source]
+Usage: sudo $0 [--clean] [--clean-source] [--drivers LIST]
 
 Options:
   --clean         Stop EtherLab, unload EtherLab modules, remove the installed
@@ -22,7 +23,13 @@ Options:
                   EtherLab kernel modules for the running kernel. The active
                   ethercat sysconfig file is preserved and restored.
   --clean-source  Also remove the EtherLab source checkout before cloning.
+  --drivers LIST  Comma or space separated EtherLab drivers to build and enable.
+                  Default: generic
+                  Example: --drivers "generic,igb,igc,ccat"
   -h, --help      Show this help.
+
+Environment:
+  ETHERCAT_DRIVERS="${ETHERCAT_DRIVERS}"
 EOF_USAGE
 }
 
@@ -33,6 +40,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --clean-source)
       clean_source=1
+      ;;
+    --drivers)
+      if [[ $# -lt 2 ]]; then
+        echo "--drivers requires a value" >&2
+        exit 2
+      fi
+      ETHERCAT_DRIVERS="$2"
+      shift
       ;;
     -h|--help)
       usage
@@ -122,6 +137,30 @@ if [[ "${clean_source}" -eq 1 ]]; then
   rm -rf "${SRC_ROOT}/ethercat"
 fi
 
+read -r -a ethercat_drivers <<< "${ETHERCAT_DRIVERS//,/ }"
+configure_driver_args=()
+device_modules=()
+for driver in "${ethercat_drivers[@]}"; do
+  case "${driver}" in
+    generic|igb|igc|ccat)
+      configure_driver_args+=("--enable-${driver}")
+      device_modules+=("${driver}")
+      ;;
+    "")
+      ;;
+    *)
+      echo "Unsupported EtherLab driver: ${driver}" >&2
+      echo "Supported drivers: generic, igb, igc, ccat" >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [[ "${#configure_driver_args[@]}" -eq 0 ]]; then
+  echo "No EtherLab drivers selected" >&2
+  exit 2
+fi
+
 clone_ref() {
   local repo="$1"
   local ref="$2"
@@ -142,10 +181,7 @@ clone_ref "${ETHERLAB_REPO}" "${ETHERLAB_REF}" "${SRC_ROOT}/ethercat"
   ./configure \
     --prefix="${ETHERLAB}" \
     --with-linux-dir="${kernel_build_dir}" \
-    --enable-generic \
-    --enable-igb \
-    --enable-igc \
-    --enable-ccat \
+    "${configure_driver_args[@]}" \
     --enable-tool \
     --enable-userlib \
     --disable-8139too \
@@ -177,6 +213,8 @@ fi
 install -d "${ETHERLAB}/etc/sysconfig"
 if [[ ! -f "${ETHERLAB}/etc/sysconfig/ethercat" ]]; then
   install -m 0644 "${project_root}/config/ethercat.sysconfig.template" \
+    "${ETHERLAB}/etc/sysconfig/ethercat"
+  sed -i "s/^DEVICE_MODULES=.*/DEVICE_MODULES=\"${device_modules[*]}\"/" \
     "${ETHERLAB}/etc/sysconfig/ethercat"
 fi
 install -d /etc/sysconfig
