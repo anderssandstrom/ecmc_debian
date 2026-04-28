@@ -132,12 +132,15 @@ install_flat_runtime_module() {
   done < <(
     find "${src}" \
       -path "${src}/.git" -prune -o \
+      -path "${src}/.github" -prune -o \
       -path "${src}/examples" -prune -o \
       -path "${src}/tests" -prune -o \
       -path "${src}/hugo" -prune -o \
       -path "${src}/doc" -prune -o \
       -path "${src}/documentation" -prune -o \
       -path "${src}/qt" -prune -o \
+      -path "${src}/utils" -prune -o \
+      -path "${src}/hardware/Technosoft_slaves" -prune -o \
       -type f \( \
         -name '*.cmd' -o \
         -name '*.script' -o \
@@ -161,12 +164,15 @@ install_flat_runtime_module() {
   done < <(
     find "${src}" \
       -path "${src}/.git" -prune -o \
+      -path "${src}/.github" -prune -o \
       -path "${src}/examples" -prune -o \
       -path "${src}/tests" -prune -o \
       -path "${src}/hugo" -prune -o \
       -path "${src}/doc" -prune -o \
       -path "${src}/documentation" -prune -o \
       -path "${src}/qt" -prune -o \
+      -path "${src}/utils" -prune -o \
+      -path "${src}/hardware/Technosoft_slaves" -prune -o \
       -type f \( \
         -name '*.db' -o \
         -name '*.template' -o \
@@ -185,12 +191,15 @@ install_flat_runtime_module() {
   done < <(
     find "${src}" \
       -path "${src}/.git" -prune -o \
+      -path "${src}/.github" -prune -o \
       -path "${src}/examples" -prune -o \
       -path "${src}/tests" -prune -o \
       -path "${src}/hugo" -prune -o \
       -path "${src}/doc" -prune -o \
       -path "${src}/documentation" -prune -o \
       -path "${src}/qt" -prune -o \
+      -path "${src}/utils" -prune -o \
+      -path "${src}/hardware/Technosoft_slaves" -prune -o \
       -type f -name '*.dbd' -print | sort
   )
 }
