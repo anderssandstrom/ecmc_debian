@@ -15,6 +15,7 @@ SRC_ROOT="${SRC_ROOT:-/opt/src/ecmc-controller}"
 ECMCCFG_SRC="${ECMCCFG_SRC:-${SRC_ROOT}/ecmccfg}"
 ECMCCOMP_SRC="${ECMCCOMP_SRC:-${SRC_ROOT}/ecmccomp}"
 RUCKIG_SRC="${RUCKIG_SRC:-${SRC_ROOT}/ecmc_ruckig}"
+RUCKIG_CXX_FLAGS="${RUCKIG_CXX_FLAGS:--Wno-error=array-bounds}"
 ECMC_USER="${ECMC_USER:-${SUDO_USER:-}}"
 read -r -a etherlab_install_args <<< "${ECMC_ETHERLAB_ARGS:-}"
 
@@ -228,6 +229,10 @@ link_epics_base_tools() {
   done
 }
 
+find_ecmc_ioc() {
+  find "${SUPPORT}/ecmc" -path '*/bin/*/ecmcIoc' -type f -perm -111 -print -quit 2>/dev/null || true
+}
+
 if [[ ! -d "${EPICS_BASE}/configure" ]]; then
   curl -fsSL "https://epics.anl.gov/download/base/base-${EPICS_BASE_VERSION}.tar.gz" \
     | tar -xz -C "${SRC_ROOT}"
@@ -258,6 +263,7 @@ install -d "${SUPPORT}/ruckig"
 cp -a "${RUCKIG_SRC}/ruckig/include" "${SUPPORT}/ruckig/include"
 cmake -S "${RUCKIG_SRC}/ruckig" -B "${SUPPORT}/ruckig/build" \
   -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_CXX_FLAGS="${RUCKIG_CXX_FLAGS}" \
   -DBUILD_SHARED_LIBS=ON \
   -DBUILD_EXAMPLES=OFF \
   -DBUILD_TESTS=OFF \
@@ -328,6 +334,12 @@ fi
 write_release "${SUPPORT}/ecmc/configure/RELEASE.local"
 write_release "${SUPPORT}/ecmc/ecmcExampleTop/configure/RELEASE.local"
 make -C "${SUPPORT}/ecmc" -j"$(nproc)"
+make -C "${SUPPORT}/ecmc/ecmcExampleTop" -j"$(nproc)"
+if [[ -z "$(find_ecmc_ioc)" ]]; then
+  echo "ecmc build completed but no ecmcIoc binary was found below ${SUPPORT}/ecmc." >&2
+  echo "Check the ecmcExampleTop build output above for the first compile or link error." >&2
+  exit 1
+fi
 
 clone_ref "${ECMCCOMP_REPO}" "${ECMCCOMP_REF}" "${ECMCCOMP_SRC}"
 if [[ -d "${ECMCCOMP_SRC}/configure" ]]; then
