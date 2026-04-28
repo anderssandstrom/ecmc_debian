@@ -12,6 +12,8 @@ EPICS_BASE="${EPICS_BASE:-${EPICS_ROOT}/base}"
 SUPPORT="${SUPPORT:-${EPICS_ROOT}/support}"
 ETHERLAB="${ETHERLAB:-/opt/etherlab}"
 SRC_ROOT="${SRC_ROOT:-/opt/src/ecmc-controller}"
+ECMCCFG_SRC="${ECMCCFG_SRC:-${SRC_ROOT}/ecmccfg}"
+ECMCCOMP_SRC="${ECMCCOMP_SRC:-${SRC_ROOT}/ecmccomp}"
 ECMC_USER="${ECMC_USER:-${SUDO_USER:-}}"
 read -r -a etherlab_install_args <<< "${ECMC_ETHERLAB_ARGS:-}"
 
@@ -76,6 +78,95 @@ ECMCCOMP=${SUPPORT}/ecmccomp
 EOF_RELEASE
 }
 
+install_flat_runtime_module() {
+  local src="$1"
+  local dest="$2"
+  local file=""
+  local base=""
+  local mode=""
+
+  rm -rf "${dest}"
+  install -d "${dest}" "${dest}/db" "${dest}/dbd"
+
+  while IFS= read -r file; do
+    base="$(basename "${file}")"
+    if [[ -e "${dest}/${base}" ]]; then
+      echo "Duplicate runtime file while flattening ${src}: ${base}" >&2
+      exit 1
+    fi
+    mode="0644"
+    case "${file}" in
+      *.sh|*.py)
+        mode="0755"
+        ;;
+    esac
+    install -m "${mode}" "${file}" "${dest}/${base}"
+  done < <(
+    find "${src}" \
+      -path "${src}/.git" -prune -o \
+      -path "${src}/examples" -prune -o \
+      -path "${src}/tests" -prune -o \
+      -path "${src}/hugo" -prune -o \
+      -path "${src}/doc" -prune -o \
+      -path "${src}/documentation" -prune -o \
+      -path "${src}/qt" -prune -o \
+      -type f \( \
+        -name '*.cmd' -o \
+        -name '*.script' -o \
+        -name '*.sh' -o \
+        -name '*.py' -o \
+        -name '*.plc' -o \
+        -name '*.plc_inc' -o \
+        -name '*.yaml' -o \
+        -name '*.yml' -o \
+        -name '*.jinja2' \
+      \) -print | sort
+  )
+
+  while IFS= read -r file; do
+    base="$(basename "${file}")"
+    if [[ -e "${dest}/db/${base}" ]]; then
+      echo "Duplicate database file while flattening ${src}: ${base}" >&2
+      exit 1
+    fi
+    install -m 0644 "${file}" "${dest}/db/${base}"
+  done < <(
+    find "${src}" \
+      -path "${src}/.git" -prune -o \
+      -path "${src}/examples" -prune -o \
+      -path "${src}/tests" -prune -o \
+      -path "${src}/hugo" -prune -o \
+      -path "${src}/doc" -prune -o \
+      -path "${src}/documentation" -prune -o \
+      -path "${src}/qt" -prune -o \
+      -type f \( \
+        -name '*.db' -o \
+        -name '*.template' -o \
+        -name '*.substitutions' -o \
+        -name '*.subs' \
+      \) -print | sort
+  )
+
+  while IFS= read -r file; do
+    base="$(basename "${file}")"
+    if [[ -e "${dest}/dbd/${base}" ]]; then
+      echo "Duplicate dbd file while flattening ${src}: ${base}" >&2
+      exit 1
+    fi
+    install -m 0644 "${file}" "${dest}/dbd/${base}"
+  done < <(
+    find "${src}" \
+      -path "${src}/.git" -prune -o \
+      -path "${src}/examples" -prune -o \
+      -path "${src}/tests" -prune -o \
+      -path "${src}/hugo" -prune -o \
+      -path "${src}/doc" -prune -o \
+      -path "${src}/documentation" -prune -o \
+      -path "${src}/qt" -prune -o \
+      -type f -name '*.dbd' -print | sort
+  )
+}
+
 install_ethercat_config_link() {
   local link_path="$1"
   local target_path="$2"
@@ -95,12 +186,41 @@ install_ethercat_config_link() {
   fi
 }
 
+link_epics_base_tools() {
+  local epics_bin="${EPICS_BASE}/bin/linux-x86_64"
+
+  if [[ ! -d "${epics_bin}" ]]; then
+    echo "EPICS Base binary directory not found: ${epics_bin}" >&2
+    return 0
+  fi
+
+  install -d /usr/local/bin
+  for tool in \
+    caget \
+    cainfo \
+    camonitor \
+    caput \
+    caRepeater \
+    softIoc \
+    softIocPVA \
+    dbpf \
+    dbgf \
+    dbpr \
+    dbtr \
+    iocsh; do
+    if [[ -x "${epics_bin}/${tool}" ]]; then
+      ln -sfn "${epics_bin}/${tool}" "/usr/local/bin/${tool}"
+    fi
+  done
+}
+
 if [[ ! -d "${EPICS_BASE}/configure" ]]; then
   curl -fsSL "https://epics.anl.gov/download/base/base-${EPICS_BASE_VERSION}.tar.gz" \
     | tar -xz -C "${SRC_ROOT}"
   mv "${SRC_ROOT}/base-${EPICS_BASE_VERSION}" "${EPICS_BASE}"
 fi
 make -C "${EPICS_BASE}" -j"$(nproc)"
+link_epics_base_tools
 
 clone_ref "${ASYN_REPO}" "${ASYN_REF}" "${SUPPORT}/asyn"
 cat > "${SUPPORT}/asyn/configure/RELEASE.local" <<EOF_ASYN
@@ -171,7 +291,8 @@ EOF_PROFILE
   fi
 done
 
-clone_ref "${ECMCCFG_REPO}" "${ECMCCFG_REF}" "${SUPPORT}/ecmccfg"
+clone_ref "${ECMCCFG_REPO}" "${ECMCCFG_REF}" "${ECMCCFG_SRC}"
+install_flat_runtime_module "${ECMCCFG_SRC}" "${SUPPORT}/ecmccfg"
 
 clone_ref "${ECMC_REPO}" "${ECMC_REF}" "${SUPPORT}/ecmc"
 git -C "${SUPPORT}/ecmc" submodule update --init exprtkSupport
@@ -182,9 +303,9 @@ write_release "${SUPPORT}/ecmc/configure/RELEASE.local"
 write_release "${SUPPORT}/ecmc/ecmcExampleTop/configure/RELEASE.local"
 make -C "${SUPPORT}/ecmc" -j"$(nproc)"
 
-clone_ref "${ECMCCOMP_REPO}" "${ECMCCOMP_REF}" "${SUPPORT}/ecmccomp"
-if [[ -d "${SUPPORT}/ecmccomp/configure" ]]; then
-  cat > "${SUPPORT}/ecmccomp/configure/RELEASE.local" <<EOF_ECMCCOMP
+clone_ref "${ECMCCOMP_REPO}" "${ECMCCOMP_REF}" "${ECMCCOMP_SRC}"
+if [[ -d "${ECMCCOMP_SRC}/configure" ]]; then
+  cat > "${ECMCCOMP_SRC}/configure/RELEASE.local" <<EOF_ECMCCOMP
 SUPPORT=${SUPPORT}
 EPICS_BASE=${EPICS_BASE}
 ASYN=${SUPPORT}/asyn
@@ -194,9 +315,11 @@ ECMCCFG=${SUPPORT}/ecmccfg
 ETHERLAB=${ETHERLAB}
 EOF_ECMCCOMP
 fi
-if [[ -f "${SUPPORT}/ecmccomp/Makefile" ]]; then
-  make -C "${SUPPORT}/ecmccomp" -j"$(nproc)"
+if [[ -f "${ECMCCOMP_SRC}/Makefile" ]]; then
+  make -C "${ECMCCOMP_SRC}" -j"$(nproc)"
 fi
+install_flat_runtime_module "${ECMCCOMP_SRC}" "${SUPPORT}/ecmccomp"
+"${script_dir}/install-classic-ioc.sh"
 ldconfig
 
 cat <<EOF_DONE
