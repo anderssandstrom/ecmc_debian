@@ -6,14 +6,34 @@ project_root="$(cd "${script_dir}/.." && pwd)"
 
 IOC_DIR="${IOC_DIR:-/opt/epics/iocs/ecmc-classic}"
 EPICS_BASE="${EPICS_BASE:-/opt/epics/base}"
+ECMC_TOP="${ECMC_TOP:-/opt/epics/support/ecmc}"
 
 if [[ "$(id -u)" -ne 0 ]]; then
   echo "Run as root, for example: sudo $0" >&2
   exit 1
 fi
 
-if [[ ! -x /opt/epics/support/ecmc/ecmcExampleTop/bin/linux-x86_64/ecmcIoc ]]; then
-  echo "Missing ecmcIoc binary. Run scripts/install-controller.sh first." >&2
+find_ecmc_ioc() {
+  local binary=""
+
+  if [[ -n "${EPICS_HOST_ARCH:-}" && -x "${ECMC_TOP}/ecmcExampleTop/bin/${EPICS_HOST_ARCH}/ecmcIoc" ]]; then
+    printf '%s\n' "${ECMC_TOP}/ecmcExampleTop/bin/${EPICS_HOST_ARCH}/ecmcIoc"
+    return 0
+  fi
+
+  binary="$(find "${ECMC_TOP}" -path '*/bin/*/ecmcIoc' -type f -perm -111 -print -quit 2>/dev/null || true)"
+  if [[ -n "${binary}" ]]; then
+    printf '%s\n' "${binary}"
+    return 0
+  fi
+
+  return 1
+}
+
+ecmc_ioc="$(find_ecmc_ioc || true)"
+if [[ -z "${ecmc_ioc}" ]]; then
+  echo "Missing ecmcIoc binary below ${ECMC_TOP}." >&2
+  echo "Run scripts/install-controller.sh first, or check the ecmc build log for the IOC build failure." >&2
   exit 1
 fi
 if [[ ! -f /opt/epics/support/ecmccfg/startup.cmd ]]; then
@@ -55,6 +75,7 @@ link_epics_base_tools() {
 
 install -d "${IOC_DIR}"
 cp -a "${project_root}/config/ioc/classic/." "${IOC_DIR}/"
+sed -i "1s|^#!.*|#!${ecmc_ioc}|" "${IOC_DIR}/st.cmd"
 chmod 0755 "${IOC_DIR}/st.cmd"
 link_epics_base_tools
 

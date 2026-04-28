@@ -14,6 +14,7 @@ ETHERLAB="${ETHERLAB:-/opt/etherlab}"
 SRC_ROOT="${SRC_ROOT:-/opt/src/ecmc-controller}"
 ECMCCFG_SRC="${ECMCCFG_SRC:-${SRC_ROOT}/ecmccfg}"
 ECMCCOMP_SRC="${ECMCCOMP_SRC:-${SRC_ROOT}/ecmccomp}"
+RUCKIG_SRC="${RUCKIG_SRC:-${SRC_ROOT}/ecmc_ruckig}"
 ECMC_USER="${ECMC_USER:-${SUDO_USER:-}}"
 read -r -a etherlab_install_args <<< "${ECMC_ETHERLAB_ARGS:-}"
 
@@ -186,6 +187,19 @@ install_ethercat_config_link() {
   fi
 }
 
+ensure_ethercat_device_modules() {
+  local config="$1"
+  local modules="$2"
+
+  if grep -q '^DEVICE_MODULES=' "${config}"; then
+    if grep -q '^DEVICE_MODULES=""' "${config}"; then
+      sed -i "s/^DEVICE_MODULES=.*/DEVICE_MODULES=\"${modules}\"/" "${config}"
+    fi
+  else
+    printf 'DEVICE_MODULES="%s"\n' "${modules}" >> "${config}"
+  fi
+}
+
 link_epics_base_tools() {
   local epics_bin="${EPICS_BASE}/bin/linux-x86_64"
 
@@ -238,10 +252,16 @@ ASYN=${SUPPORT}/asyn
 EOF_MOTOR
 make -C "${SUPPORT}/motor" -j"$(nproc)"
 
-clone_ref "${RUCKIG_REPO}" "${RUCKIG_REF}" "${SUPPORT}/ruckig"
-cmake -S "${SUPPORT}/ruckig" -B "${SUPPORT}/ruckig/build" \
+clone_ref "${RUCKIG_REPO}" "${RUCKIG_REF}" "${RUCKIG_SRC}"
+rm -rf "${SUPPORT}/ruckig"
+install -d "${SUPPORT}/ruckig"
+cp -a "${RUCKIG_SRC}/ruckig/include" "${SUPPORT}/ruckig/include"
+cmake -S "${RUCKIG_SRC}/ruckig" -B "${SUPPORT}/ruckig/build" \
   -DCMAKE_BUILD_TYPE=Release \
-  -DBUILD_SHARED_LIBS=ON
+  -DBUILD_SHARED_LIBS=ON \
+  -DBUILD_EXAMPLES=OFF \
+  -DBUILD_TESTS=OFF \
+  -DBUILD_PYTHON_MODULE=OFF
 cmake --build "${SUPPORT}/ruckig/build" --target ruckig --parallel "$(nproc)"
 
 "${script_dir}/install-etherlab.sh" "${etherlab_install_args[@]}"
@@ -251,9 +271,13 @@ if [[ ! -f "${ETHERLAB}/etc/sysconfig/ethercat" ]]; then
   install -m 0644 "${project_root}/config/ethercat.sysconfig.template" \
     "${ETHERLAB}/etc/sysconfig/ethercat"
 fi
+ensure_ethercat_device_modules "${ETHERLAB}/etc/sysconfig/ethercat" "generic"
 install -d /etc/sysconfig
 install_ethercat_config_link /etc/sysconfig/ethercat "${ETHERLAB}/etc/sysconfig/ethercat"
 install_ethercat_config_link /etc/default/ethercat "${ETHERLAB}/etc/sysconfig/ethercat"
+if [[ -f /etc/sysconfig/ethercat ]]; then
+  ensure_ethercat_device_modules /etc/sysconfig/ethercat "generic"
+fi
 
 groupadd --system --force ecmc
 if [[ -n "${ECMC_USER}" && "${ECMC_USER}" != "root" ]] && id "${ECMC_USER}" >/dev/null 2>&1; then
@@ -269,6 +293,8 @@ install -m 0644 "${project_root}/config/systemd/ethercat.service" \
 install -d /usr/local/sbin /usr/local/bin
 install -m 0755 "${project_root}/config/bin/ecmc-ethercat-ifup" \
   /usr/local/sbin/ecmc-ethercat-ifup
+install -m 0755 "${project_root}/config/bin/ecmc-ethercat-modules" \
+  /usr/local/sbin/ecmc-ethercat-modules
 install -m 0755 "${project_root}/config/bin/ecmc-ethercat-devices" \
   /usr/local/sbin/ecmc-ethercat-devices
 ln -sfn "${ETHERLAB}/bin/ethercat" /usr/local/bin/ethercat
@@ -340,6 +366,6 @@ Next:
   5. Check the master:
      ethercat master
   6. Run the ecmc example IOC from:
-     ${SUPPORT}/ecmc/ecmcExampleTop/iocBoot/ecmcIoc
+     /opt/epics/iocs/ecmc-classic
 
 EOF_DONE

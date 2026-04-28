@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config="${1:-/etc/sysconfig/ethercat}"
+
+if [[ ! -r "${config}" ]]; then
+  echo "EtherCAT config not readable: ${config}" >&2
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+source "${config}"
+
+device_modules_config="${DEVICE_MODULES:-}"
+read -r -a device_modules <<< "${device_modules_config//,/ }"
+if [[ "${#device_modules[@]}" -eq 0 ]]; then
+  echo "No EtherCAT DEVICE_MODULES configured in ${config}" >&2
+  exit 1
+fi
+
+for module in "${device_modules[@]}"; do
+  [[ -n "${module}" ]] || continue
+  /usr/sbin/modprobe "ec_${module}"
+done

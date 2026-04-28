@@ -184,6 +184,19 @@ install_ethercat_config_link() {
   fi
 }
 
+ensure_ethercat_device_modules() {
+  local config="$1"
+  local modules="$2"
+
+  if grep -q '^DEVICE_MODULES=' "${config}"; then
+    if grep -q '^DEVICE_MODULES=""' "${config}"; then
+      sed -i "s/^DEVICE_MODULES=.*/DEVICE_MODULES=\"${modules}\"/" "${config}"
+    fi
+  else
+    printf 'DEVICE_MODULES="%s"\n' "${modules}" >> "${config}"
+  fi
+}
+
 clone_ref() {
   local repo="$1"
   local ref="$2"
@@ -240,9 +253,13 @@ if [[ ! -f "${ETHERLAB}/etc/sysconfig/ethercat" ]]; then
   sed -i "s/^DEVICE_MODULES=.*/DEVICE_MODULES=\"${device_modules[*]}\"/" \
     "${ETHERLAB}/etc/sysconfig/ethercat"
 fi
+ensure_ethercat_device_modules "${ETHERLAB}/etc/sysconfig/ethercat" "${device_modules[*]}"
 install -d /etc/sysconfig
 install_ethercat_config_link /etc/sysconfig/ethercat "${ETHERLAB}/etc/sysconfig/ethercat"
 install_ethercat_config_link /etc/default/ethercat "${ETHERLAB}/etc/sysconfig/ethercat"
+if [[ -f /etc/sysconfig/ethercat ]]; then
+  ensure_ethercat_device_modules /etc/sysconfig/ethercat "${device_modules[*]}"
+fi
 
 groupadd --system --force ecmc
 if [[ -n "${ECMC_USER}" && "${ECMC_USER}" != "root" ]] && id "${ECMC_USER}" >/dev/null 2>&1; then
@@ -255,6 +272,8 @@ install -m 0644 "${project_root}/config/systemd/ethercat.service" \
 install -d /usr/local/sbin /usr/local/bin
 install -m 0755 "${project_root}/config/bin/ecmc-ethercat-ifup" \
   /usr/local/sbin/ecmc-ethercat-ifup
+install -m 0755 "${project_root}/config/bin/ecmc-ethercat-modules" \
+  /usr/local/sbin/ecmc-ethercat-modules
 install -m 0755 "${project_root}/config/bin/ecmc-ethercat-devices" \
   /usr/local/sbin/ecmc-ethercat-devices
 ln -sfn "${ETHERLAB}/bin/ethercat" /usr/local/bin/ethercat
