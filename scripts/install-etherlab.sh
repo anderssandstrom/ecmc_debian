@@ -94,6 +94,10 @@ if [[ ! -f "${ETHERLAB}/etc/sysconfig/ethercat" ]]; then
   install -m 0644 "${project_root}/config/ethercat.sysconfig.template" \
     "${ETHERLAB}/etc/sysconfig/ethercat"
 fi
+install -d /etc/sysconfig
+if [[ ! -e /etc/sysconfig/ethercat ]]; then
+  ln -s "${ETHERLAB}/etc/sysconfig/ethercat" /etc/sysconfig/ethercat
+fi
 
 install -d /etc/systemd/system
 install -m 0644 "${project_root}/config/systemd/ethercat.service" \

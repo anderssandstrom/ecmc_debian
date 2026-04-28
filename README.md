@@ -68,6 +68,12 @@ After installation, edit:
 /opt/etherlab/etc/sysconfig/ethercat
 ```
 
+The installer also creates:
+
+```text
+/etc/sysconfig/ethercat -> /opt/etherlab/etc/sysconfig/ethercat
+```
+
 Set `MASTER0_DEVICE` to the MAC address of the controller NIC connected to the
 EtherCAT chain.
 

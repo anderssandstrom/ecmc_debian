@@ -1,7 +1,7 @@
 [Unit]
 Description=EtherLab EtherCAT master
 After=network.target
-ConditionPathExists=/opt/etherlab/etc/sysconfig/ethercat
+ConditionPathExists=/etc/sysconfig/ethercat
 
 [Service]
 Type=forking
